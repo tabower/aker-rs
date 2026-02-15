@@ -1,7 +1,5 @@
-// for test only, once.
-use crate::drivers::arch::riscv64::sbi;
+use crate::prelude::*;
 
 pub fn init() {
-    sbi::put_str("hello world\n");
-    sbi::shutdown(false);
+    pr_info!("[ARCH] hello world\n");
 }

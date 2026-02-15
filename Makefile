@@ -42,7 +42,7 @@ QEMU_DEBUG := -gdb tcp::$(GDB_PORT) -S
 $(eval $(ARCH_RULES))
 
 # Targets
-.PHONY: all build clean kernel asm bin run qemu qemu-gdb gdb $(ARCH_BUILD_TARGETS)
+.PHONY: all build clean kernel asm bin run qemu qemu-gdb gdb qemu-for-test $(ARCH_BUILD_TARGETS) 
 
 .DEFAULT_GOAL := build
 
@@ -78,6 +78,16 @@ gdb:
 	fi
 	@echo "   GDB      Connecting..."
 	$(GDB) $(KERNEL_ELF) $(GDB_FLAGS)
+
+test:
+	@echo "   CARGO    Running tests..."
+	@$(CARGO) test
+
+# For cargo test runner: Do not compile kernel, only generate DTB + boot QEMU
+# Override kernel path externally via KERNEL_ELF=<path>
+qemu-for-test: dtb
+	@echo "   QEMU     Running (runner mode)..."
+	$(QEMU) $(QEMU_OPTS)
 
 clean:
 	@echo "   CLEAN"

@@ -8,3 +8,4 @@ rustflags = [
     "-C", "target-feature=+m,+a,+c",
     "-C", "target-feature=+zihintpause",
 ]
+runner = "scripts/qemu-runner.sh"

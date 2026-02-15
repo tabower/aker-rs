@@ -14,6 +14,7 @@ pub mod current;
 pub use current::boot;
 pub use current::init;
 pub use current::mm;
+pub use current::io;
 
 #[cfg(target_arch = "riscv64")]
 pub const ARCH_NAME: &str = "RISCV64";
