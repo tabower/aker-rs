@@ -1,0 +1,41 @@
+/* memory-numa.dtsi */
+/ {
+	/*
+	* Memory layout (modified - test merge):
+	* Node 0: 1GB @ 0x80000000 + 768MB @ 0xC0000000 = 1792MB (contiguous!)
+	* Node 1: 256MB @ 0x100000000
+	* Node 2: 1GB @ 0x110000000
+	*
+	* Merge test:
+	* - The two blocks on Node 0 should be merged: 0x80000000-0xBFFFFFFF + 0xC0000000-0xEFFFFFFF
+	*   After merging: 0x80000000 - 0xEFFFFFFF (1792MB)
+	*/
+	
+	/* Node 0 - First 1GB Block */
+	memory@80000000 {
+		device_type = "memory";
+		reg = <0x00 0x80000000 0x00 0x40000000>;  /* 1GB: 0x80000000 - 0xBFFFFFFF */
+		numa-node-id = <0>;
+	};
+	
+	/* Node 0 - Second block 768MB (Immediately adjacent to first block! Testing merge) */
+	memory@c0000000 {
+		device_type = "memory";
+		reg = <0x00 0xC0000000 0x00 0x30000000>;  /* 768MB: 0xC0000000 - 0xEFFFFFFF */
+		numa-node-id = <0>;
+	};
+	
+	/* Node 1 - 256MB */
+	memory@100000000 {
+		device_type = "memory";
+		reg = <0x01 0x00000000 0x00 0x10000000>;  /* 256MB: 0x100000000 - 0x10FFFFFFF */
+		numa-node-id = <1>;
+	};
+	
+	/* Node 2 - 1GB */
+	memory@110000000 {
+		device_type = "memory";
+		reg = <0x01 0x10000000 0x00 0x40000000>;  /* 1GB: 0x110000000 - 0x14FFFFFFF */
+		numa-node-id = <2>;
+	};
+};

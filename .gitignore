@@ -1,1 +1,7 @@
 /target
+/.vscode
+/tmp
+
+docker-compose.yml
+docker.sh
+.gdbinit

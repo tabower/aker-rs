@@ -1,0 +1,256 @@
+/dts-v1/;
+
+/include/             "test-memory-numa.dtsi"
+
+/                     {
+	#address-cells = <0x02>;
+	#size-cells = <0x02>;
+	compatible            = "riscv-virtio";
+	model                 = "riscv-virtio,qemu";
+	
+	chosen                {
+		stdout-path           = "/soc/serial@10000000";
+	};
+	
+	/*                    poweroff */
+	syscon_poweroff:
+	poweroff              {
+		compatible            = "syscon-poweroff";
+		regmap                = <&test>;
+		offset                = <0x00>;
+		value                 = <0x5555>;
+	};
+	
+	/*                    reboot */
+	syscon_reboot:
+	reboot                {
+		compatible            = "syscon-reboot";
+		regmap                = <&test>;
+		offset                = <0x00>;
+		value                 = <0x7777>;
+	};
+	
+	cpus                  {
+		#address-cells = <0x01>;
+		#size-cells = <0x00>;
+		timebase-frequency    = <10000000>;
+		
+		cpu0:
+		cpu@0                 {
+			device_type           = "cpu";
+			reg                   = <0x00>;
+			status                = "okay";
+			compatible            = "riscv";
+			riscv,isa             = "rv64imafdch_zicbom_zicboz_zicntr_zicsr_zifencei_zihintntl_zihintpause_zihpm_zawrs_zfa_zca_zcd_zba_zbb_zbc_zbs_sstc_svadu";
+			mmu-type              = "riscv,sv57";
+			numa-node-id          = <0>;
+			
+			cpu0_intc:
+			interrupt-controller  {
+				#interrupt-cells = <0x01>;
+				interrupt-controller;
+				compatible            = "riscv,cpu-intc";
+				#address-cells = <0>;
+			};
+		};
+		
+		cpu1:
+		cpu@1                 {
+			device_type           = "cpu";
+			reg                   = <0x01>;
+			status                = "okay";
+			compatible            = "riscv";
+			riscv,isa             = "rv64imafdch_zicbom_zicboz_zicntr_zicsr_zifencei_zihintntl_zihintpause_zihpm_zawrs_zfa_zca_zcd_zba_zbb_zbc_zbs_sstc_svadu";
+			mmu-type              = "riscv,sv57";
+			numa-node-id          = <1>;
+			
+			cpu1_intc:
+			interrupt-controller  {
+				#interrupt-cells = <0x01>;
+				interrupt-controller;
+				compatible            = "riscv,cpu-intc";
+				#address-cells = <0>;
+			};
+		};
+		
+		cpu2:
+		cpu@2                 {
+			device_type           = "cpu";
+			reg                   = <0x02>;
+			status                = "okay";
+			compatible            = "riscv";
+			riscv,isa             = "rv64imafdch_zicbom_zicboz_zicntr_zicsr_zifencei_zihintntl_zihintpause_zihpm_zawrs_zfa_zca_zcd_zba_zbb_zbc_zbs_sstc_svadu";
+			mmu-type              = "riscv,sv57";
+			numa-node-id          = <2>;
+			
+			cpu2_intc:
+			interrupt-controller  {
+				#interrupt-cells = <0x01>;
+				interrupt-controller;
+				compatible            = "riscv,cpu-intc";
+				#address-cells = <0>;
+			};
+		};
+		
+		cpu-map               {
+	cluster0              { core0 { cpu = <&cpu0>; }; };
+	cluster1              { core0 { cpu = <&cpu1>; }; };
+	cluster2              { core0 { cpu = <&cpu2>; }; };
+		};
+	};
+	
+	soc                   {
+		#address-cells = <0x02>;
+		#size-cells = <0x02>;
+		compatible            = "simple-bus";
+		ranges;
+		
+		clint@2000000         {
+			compatible            = "riscv,clint0";
+			reg                   = <0x0 0x2000000 0x0 0x10000>;
+			interrupts-extended   = <&cpu0_intc 3 &cpu0_intc 7>;
+			numa-node-id          = <0>;
+		};
+		
+		clint@2010000         {
+			compatible            = "riscv,clint0";
+			reg                   = <0x0 0x2010000 0x0 0x10000>;
+			interrupts-extended   = <&cpu1_intc 3 &cpu1_intc 7>;
+			numa-node-id          = <1>;
+		};
+		
+		clint@2020000         {
+			compatible            = "riscv,clint0";
+			reg                   = <0x0 0x2020000 0x0 0x10000>;
+			interrupts-extended   = <&cpu2_intc 3 &cpu2_intc 7>;
+			numa-node-id          = <2>;
+		};
+		
+		plic0:
+		plic@c000000          {
+			phandle               = <0x09>;
+			compatible            = "riscv,plic0";
+			interrupt-controller;
+			#interrupt-cells = <1>;
+			#address-cells = <0>;
+			reg                   = <0x0 0xc000000 0x0 0x600000>;
+			riscv,ndev            = <0x5f>;
+			interrupts-extended   = <&cpu0_intc 11 &cpu0_intc 9>;
+			numa-node-id          = <0>;
+		};
+		
+		plic1:
+		plic@c600000          {
+			compatible            = "riscv,plic0";
+			interrupt-controller;
+			#interrupt-cells = <1>;
+			#address-cells = <0>;
+			reg                   = <0x0 0xc600000 0x0 0x600000>;
+			riscv,ndev            = <0x5f>;
+			interrupts-extended   = <&cpu1_intc 11 &cpu1_intc 9>;
+			numa-node-id          = <1>;
+		};
+		
+		plic2:
+		plic@cc00000          {
+			compatible            = "riscv,plic0";
+			interrupt-controller;
+			#interrupt-cells = <1>;
+			#address-cells = <0>;
+			reg                   = <0x0 0xcc00000 0x0 0x600000>;
+			riscv,ndev            = <0x5f>;
+			interrupts-extended   = <&cpu2_intc 11 &cpu2_intc 9>;
+			numa-node-id          = <2>;
+		};
+		
+		serial@10000000       {
+			compatible            = "ns16550a";
+			reg                   = <0x0 0x10000000 0x0 0x100>;
+			interrupts            = <10>;
+			interrupt-parent      = <&plic0>;
+			clock-frequency       = <3686400>;
+		};
+		
+		rtc@101000            {
+			compatible            = "google,goldfish-rtc";
+			reg                   = <0x0 0x101000 0x0 0x1000>;
+			interrupts            = <11>;
+			interrupt-parent      = <&plic0>;
+		};
+		
+		/*                    The test equipment remains in the SOC because it has a register address. */
+		test:
+		test@100000           {
+			compatible            = "sifive,test1", "sifive,test0", "syscon";
+			reg                   = <0x0 0x100000 0x0 0x1000>;
+		};
+		
+		pci@30000000          {
+			compatible            = "pci-host-ecam-generic";
+			device_type           = "pci";
+			reg                   = <0x0 0x30000000 0x0 0x10000000>;
+			bus-range             = <0x0 0xff>;
+			ranges                = <0x1000000 0x0 0x0 0x0 0x3000000 0x0 0x10000>,
+			<0x2000000            0x0 0x40000000 0x0 0x40000000 0x0 0x40000000>;
+			linux,pci-domain      = <0>;
+			#address-cells = <3>;
+			#size-cells = <2>;
+			#interrupt-cells = <1>;
+			interrupt-map-mask    = <0x1800 0x0 0x0 0x7>;
+			interrupt-map         = <0x0000 0x0 0x0 0x1 &plic0 32
+			0x0000                0x0 0x0 0x2 &plic0 33
+			0x0000                0x0 0x0 0x3 &plic0 34
+			0x0000                0x0 0x0 0x4 &plic0 35>;
+			dma-coherent;
+		};
+		
+		virtio_mmio@10001000  {
+			compatible            = "virtio,mmio";
+			reg                   = <0x0 0x10001000 0x0 0x1000>;
+			interrupts            = <1>;
+			interrupt-parent      = <&plic0>;
+		};
+		virtio_mmio@10002000  {
+			compatible            = "virtio,mmio";
+			reg                   = <0x0 0x10002000 0x0 0x1000>;
+			interrupts            = <2>;
+			interrupt-parent      = <&plic0>;
+		};
+		virtio_mmio@10003000  {
+			compatible            = "virtio,mmio";
+			reg                   = <0x0 0x10003000 0x0 0x1000>;
+			interrupts            = <3>;
+			interrupt-parent      = <&plic0>;
+		};
+		virtio_mmio@10004000  {
+			compatible            = "virtio,mmio";
+			reg                   = <0x0 0x10004000 0x0 0x1000>;
+			interrupts            = <4>;
+			interrupt-parent      = <&plic0>;
+		};
+		virtio_mmio@10005000  {
+			compatible            = "virtio,mmio";
+			reg                   = <0x0 0x10005000 0x0 0x1000>;
+			interrupts            = <5>;
+			interrupt-parent      = <&plic0>;
+		};
+		virtio_mmio@10006000  {
+			compatible            = "virtio,mmio";
+			reg                   = <0x0 0x10006000 0x0 0x1000>;
+			interrupts            = <6>;
+			interrupt-parent      = <&plic0>;
+		};
+		virtio_mmio@10007000  {
+			compatible            = "virtio,mmio";
+			reg                   = <0x0 0x10007000 0x0 0x1000>;
+			interrupts            = <7>;
+			interrupt-parent      = <&plic0>;
+		};
+		virtio_mmio@10008000  {
+			compatible            = "virtio,mmio";
+			reg                   = <0x0 0x10008000 0x0 0x1000>;
+			interrupts            = <8>;
+			interrupt-parent      = <&plic0>;
+		};
+	};
+};
