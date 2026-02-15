@@ -36,9 +36,12 @@ fn generate_const(linker_script: &PathBuf) -> PathBuf {
     let header = linker_script.display();
 
     // Generate Rust file
-    let mut rs = format!("//! DO NOT EDIT! Generated from `{header}`.\n\n");
+    let mut rs =
+        format!("//! DO NOT EDIT! Generated from `{header}`.\n\n");
     for &(name, value) in &constants {
-        rs.push_str(&format!("pub const {name}: usize = {value:#X};\n"));
+        rs.push_str(&format!(
+            "pub const {name}: usize = {value:#X};\n"
+        ));
     }
     let rs_path = gen_dir.join("linker_const.rs");
     fs::write(&rs_path, rs).unwrap();
@@ -65,9 +68,11 @@ fn generate_const(linker_script: &PathBuf) -> PathBuf {
 
 /// Linker setup task:
 /// 1. Set the linker script;
-/// 2. Generate constants from the linker script for use in Rust and assembly.
+/// 2. Generate constants from the linker script for use in Rust and
+///    assembly.
 ///
-/// rerurn the path to the generated include files for subsequent tasks to use(asm compile).
+/// rerurn the path to the generated include files for
+/// subsequent tasks to use(asm compile).
 pub fn setup(target_arch: &str) -> PathBuf {
     let linker_script = linker_script_path(target_arch);
     set_linker_script(&linker_script);

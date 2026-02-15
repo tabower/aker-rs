@@ -62,7 +62,12 @@ fn sbi_call_1(eid: usize, fid: usize, a0: usize) -> SbiRet {
 }
 
 #[inline]
-fn sbi_call_2(eid: usize, fid: usize, a0: usize, a1: usize) -> SbiRet {
+fn sbi_call_2(
+    eid: usize,
+    fid: usize,
+    a0: usize,
+    a1: usize,
+) -> SbiRet {
     sbi_call(eid, fid, [a0, a1, 0, 0, 0, 0])
 }
 
@@ -83,8 +88,12 @@ mod debug_console {
 
     const EID_DBCN: usize = 0x4442434E; // Debug Console
 
-    /// DBCN: Write bytes (non-blocking), returns bytes written
-    fn console_write(num_bytes: usize, phys_addr: PhysAddr) -> SbiRet {
+    /// DBCN: Write bytes (non-blocking), returns bytes
+    /// written
+    fn console_write(
+        num_bytes: usize,
+        phys_addr: PhysAddr,
+    ) -> SbiRet {
         sbi_call_3(EID_DBCN, 0, num_bytes, phys_addr.as_usize(), 0)
     }
 
@@ -131,7 +140,8 @@ mod system {
 
     /// System shutdown
     pub fn shutdown(failure: bool) -> ! {
-        let reason = if failure { REASON_FAILURE } else { REASON_NONE };
+        let reason =
+            if failure { REASON_FAILURE } else { REASON_NONE };
         sbi_call_2(EID_SRST, 0, RESET_SHUTDOWN, reason);
         unreachable!()
     }

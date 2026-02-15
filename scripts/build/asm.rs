@@ -1,8 +1,8 @@
 use std::fs;
 use std::path::Path;
 
-/// Recursively collect all assembly files under the given directory.
-/// Matches extensions: `.S`, `.s`, `.asm`
+/// Recursively collect all assembly files under the given
+/// directory. Matches extensions: `.S`, `.s`, `.asm`
 fn collect_asm_files(dir: &Path) -> Vec<String> {
     let mut files = Vec::new();
 
@@ -16,7 +16,9 @@ fn collect_asm_files(dir: &Path) -> Vec<String> {
 
         if path.is_dir() {
             files.extend(collect_asm_files(&path));
-        } else if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+        } else if let Some(ext) =
+            path.extension().and_then(|e| e.to_str())
+        {
             match ext {
                 "S" | "s" | "asm" => {
                     files.push(path.to_string_lossy().into_owned());
@@ -30,8 +32,9 @@ fn collect_asm_files(dir: &Path) -> Vec<String> {
     files
 }
 
-/// Compile the corresponding assembly files according to the architecture
-/// and apply architecture-specific compiler flags.
+/// Compile the corresponding assembly files according to
+/// the architecture and apply architecture-specific
+/// compiler flags.
 pub fn compile(target_arch: &str, include_path: &Path) {
     let mut build = cc::Build::new();
 

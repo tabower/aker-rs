@@ -46,7 +46,7 @@ macro_rules! pr_warn {
     };
 }
 
-/// ERROR 
+/// ERROR
 #[macro_export]
 macro_rules! pr_error {
     ($($arg:tt)*) => {

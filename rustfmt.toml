@@ -1,2 +1,4 @@
 imports_granularity = "Item"
-max_width = 80
+max_width = 70
+wrap_comments = true
+comment_width = 70

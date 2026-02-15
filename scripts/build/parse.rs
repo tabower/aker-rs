@@ -10,7 +10,6 @@ use regex::Regex;
 /// ```
 /// 0x1234_5678
 /// ```
-///
 pub fn parse_value(content: &str, name: &str) -> usize {
     let pattern = format!(r#"{}\s*=\s*(0x[0-9a-fA-F_]+)\s*;"#, name);
     let re = Regex::new(&pattern).unwrap();

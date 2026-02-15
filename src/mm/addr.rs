@@ -102,10 +102,11 @@ impl VirtAddr {
     ///
     /// ** TODO **
     ///
-    /// This is currently implemented as a simple linear mapping,
-    /// which is sufficient for our current needs.
-    /// However, in the future, we may want to support more complex mappings
-    /// (e.g., for user space, or high vaddr space).
+    /// This is currently implemented as a simple linear
+    /// mapping, which is sufficient for our current
+    /// needs. However, in the future, we may want to
+    /// support more complex mappings (e.g., for user
+    /// space, or high vaddr space).
     pub const fn to_phys(&self) -> PhysAddr {
         PhysAddr(linker::v2p_linear(self.0))
     }
