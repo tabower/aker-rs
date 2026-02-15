@@ -6,7 +6,7 @@ ENTRY( _entry )
  * KERNEL_VMA_BASE Must be 2MB-aligned to support large page mapping
  */
 
-KERNEL_VMA_BASE = 0xFFFF800000200000;
+KERNEL_VMA_BASE = 0x80200000;
 KERNEL_LMA_BASE = 0x80200000;
 PHYSICAL_BASE   = 0x80000000;
 

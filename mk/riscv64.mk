@@ -18,7 +18,8 @@ QEMU_NUMA_OPTS := \
     -numa node,nodeid=2,memdev=mem2,cpus=2
 
 # BIOS
-QEMU_BIOS := firmware/opensbi/fw_dynamic.bin
+# https://github.com/riscv-software-src/opensbi/releases
+QEMU_BIOS := firmware/opensbi/fw_jump.bin
 
 # Device tree
 QEMU_DTS_SOURCE := firmware/dts/riscv64/qemu-virt.dts
