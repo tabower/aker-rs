@@ -14,6 +14,7 @@ lto = true
 codegen-units = 1
 
 [dependencies]
+fdt = { version = "0.1.5", default-features = false }
 
 [target.'riscv64gc-unknown-none-elf'.dependencies]
 

@@ -8,6 +8,7 @@ pub mod arch;
 pub mod build_gen;
 pub mod drivers;
 pub mod kernel;
+pub mod libs;
 pub mod mm;
 pub mod prelude;
 pub mod rust;
