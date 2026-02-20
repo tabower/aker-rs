@@ -4,9 +4,11 @@ pub mod current;
 
 // Re-export for external use
 pub use current::boot;
+pub use current::cpu;
 pub use current::init;
 pub use current::io;
 pub use current::mm;
+pub use current::vm;
 
 #[cfg(target_arch = "riscv64")]
 pub const ARCH_NAME: &str = "RISCV64";

@@ -38,8 +38,24 @@ bss_clear_done:
     la       sp, boot_stack_top
     sub      sp, sp, s0
 
+# Call early_boot_init(dtb_addr) (boot.rs)
+    mv       a0, a1
+    call     early_boot_init
 
-    j        start_kernel
+# Load STAP
+    csrw     satp, a0
+    sfence.vma
+
+#  Restore sp
+    la       sp, boot_stack_top
+
+# Due to the excessive gap between the virtual address mapped
+# linearly and the current running address mapped identically,
+# it is necessary to load the register first before performing
+# a jump.
+    la       t0, start_kernel
+    jr       t0
+
 
     .section .bss
     .align   12                     # 4096-byte alignment for the stack

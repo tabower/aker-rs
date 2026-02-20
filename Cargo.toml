@@ -14,9 +14,17 @@ lto = true
 codegen-units = 1
 
 [dependencies]
-fdt = { version = "0.1.5", default-features = false }
+bitflags = {version = "2.10.0"}
 
 [target.'riscv64gc-unknown-none-elf'.dependencies]
+fdt = { version = "0.1.5", default-features = false }
+
+# Here, `features` is currently included for testing convenience,
+# but may be moved to a separate configuration file in the future.
+[features]
+default = ["sv48"]
+sv39 = []
+sv48 = []
 
 [build-dependencies]
 regex = "1"
