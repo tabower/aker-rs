@@ -1,1 +1,1 @@
-mod lang_items;
+mod panic;
