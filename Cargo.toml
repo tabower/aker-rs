@@ -25,6 +25,7 @@ fdt = { version = "0.1.5", default-features = false }
 default = ["sv48"]
 sv39 = []
 sv48 = []
+sv57 = []
 
 [build-dependencies]
 regex = "1"
