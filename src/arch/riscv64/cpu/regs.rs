@@ -12,7 +12,7 @@ macro_rules! _csrw {
 
 macro_rules! _csrr {
     ($csr_name:literal) => {{
-        let mut result: usize;
+        let result: usize;
         unsafe {
             core::arch::asm!(
                 concat!("csrr {0}, ", $csr_name),
@@ -38,7 +38,7 @@ macro_rules! _mv_write {
 
 macro_rules! _mv_read {
     ($reg_name:literal) => {{
-        let mut result: usize;
+        let result: usize;
         unsafe {
             core::arch::asm!(
                 concat!("mv {0}, ", $reg_name),
@@ -64,7 +64,7 @@ macro_rules! _csrw_u64 {
 
 macro_rules! _csrr_u64 {
     ($csr_name:literal) => {{
-        let mut result: u64;
+        let result: u64;
         unsafe {
             core::arch::asm!(
                 concat!("csrr {0}, ", $csr_name),
@@ -90,11 +90,65 @@ macro_rules! _mv_write_u64 {
 
 macro_rules! _mv_read_u64 {
     ($reg_name:literal) => {{
-        let mut result: u64;
+        let result: u64;
         unsafe {
             core::arch::asm!(
                 concat!("mv {0}, ", $reg_name),
                 out(reg) result,
+                options(nomem, nostack),
+            );
+        }
+        result
+    }};
+}
+
+macro_rules! _csrs {
+    ($csr_name:literal, $val:expr) => {
+        unsafe {
+            core::arch::asm!(
+                concat!("csrs ", $csr_name, ", {0}"),
+                in(reg) $val,
+                options(nomem, nostack),
+            );
+        }
+    };
+}
+
+macro_rules! _csrc {
+    ($csr_name:literal, $val:expr) => {
+        unsafe {
+            core::arch::asm!(
+                concat!("csrc ", $csr_name, ", {0}"),
+                in(reg) $val,
+                options(nomem, nostack),
+            );
+        }
+    };
+}
+
+macro_rules! _csrrc {
+    ($csr_name:literal, $val:expr) => {{
+        let result: usize;
+        unsafe {
+            core::arch::asm!(
+                concat!("csrrc {0}, ", $csr_name, ", {1}"),
+                out(reg) result,
+                in(reg) $val,
+                options(nomem, nostack),
+            );
+        }
+        result
+    }};
+}
+
+macro_rules! _csrrw {
+    ($csr_name:literal, $val:expr) => {{
+        let result: usize;
+        unsafe {
+            core::arch::asm!(
+                concat!("csrrw {0}, ", $csr_name, ", {1}"),
+                out(reg) result,
+                in(reg) $val,
                 options(nomem, nostack),
             );
         }
@@ -115,33 +169,96 @@ pub mod tp {
 }
 
 pub mod sstatus {
+    use core::sync::atomic::Ordering;
+    use core::sync::atomic::compiler_fence;
+
     pub const SSTATUS_SIE: usize = 1 << 1;
     pub const SSTATUS_SPIE: usize = 1 << 5;
     pub const SSTATUS_SPP: usize = 1 << 8;
 
     #[inline(always)]
     pub fn read() -> usize {
+        compiler_fence(Ordering::SeqCst);
         _csrr!("sstatus")
     }
 
     #[inline(always)]
     pub fn write(x: usize) {
+        compiler_fence(Ordering::SeqCst);
         _csrw!("sstatus", x);
+        compiler_fence(Ordering::SeqCst);
     }
 
     #[inline(always)]
-    pub fn read_ssie() -> usize {
-        read() & SSTATUS_SIE
+    pub fn read_sie() -> bool {
+        (read() & SSTATUS_SIE) != 0
+    }
+
+    #[inline(always)]
+    pub fn set_sie() {
+        compiler_fence(Ordering::SeqCst);
+        _csrs!("sstatus", SSTATUS_SIE);
+    }
+
+    #[inline(always)]
+    pub fn clear_sie() {
+        _csrc!("sstatus", SSTATUS_SIE);
+        compiler_fence(Ordering::SeqCst);
+    }
+
+    #[inline(always)]
+    pub fn irq_save() -> usize {
+        let flags = _csrrc!("sstatus", SSTATUS_SIE);
+        compiler_fence(Ordering::SeqCst);
+        flags
+    }
+
+    #[inline(always)]
+    pub fn irq_restore(flags: usize) {
+        compiler_fence(Ordering::SeqCst);
+        _csrs!("sstatus", flags & SSTATUS_SIE);
+    }
+}
+
+pub mod sie {
+    pub const SIE_SSIE: usize = 1 << 1;
+    pub const SIE_STIE: usize = 1 << 5;
+    pub const SIE_SEIE: usize = 1 << 9;
+
+    #[inline(always)]
+    pub fn read() -> usize {
+        _csrr!("sie")
     }
     #[inline(always)]
+    pub fn write(x: usize) {
+        _csrw!("sie", x);
+    }
 
+    #[inline(always)]
+    pub fn set_stie() {
+        _csrs!("sie", SIE_STIE);
+    }
+    #[inline(always)]
+    pub fn clear_stie() {
+        _csrc!("sie", SIE_STIE);
+    }
+
+    #[inline(always)]
     pub fn set_ssie() {
-        write(read() | SSTATUS_SIE);
+        _csrs!("sie", SIE_SSIE);
     }
-
     #[inline(always)]
     pub fn clear_ssie() {
-        write(read() & !SSTATUS_SIE);
+        _csrc!("sie", SIE_SSIE);
+    }
+
+    #[inline(always)]
+    pub fn set_seie() {
+        _csrs!("sie", SIE_SEIE);
+    }
+    #[inline(always)]
+    pub fn clear_seie() {
+        _csrc!("sie", SIE_SEIE);
     }
 }
 
@@ -165,6 +282,9 @@ pub mod stvec {
 /// +-------+------------+----------------------+
 /// ```
 pub mod satp {
+    use core::sync::atomic::Ordering;
+    use core::sync::atomic::compiler_fence;
+
     /// satp MODE field offset
     pub const MODE_SHIFT: usize = 60;
     /// satp MODE field mask
@@ -203,24 +323,22 @@ pub mod satp {
 
     #[inline(always)]
     pub fn read() -> usize {
+        compiler_fence(Ordering::SeqCst);
         _csrr!("satp")
     }
 
     #[inline(always)]
     pub fn write(x: usize) {
+        compiler_fence(Ordering::SeqCst);
         _csrw!("satp", x);
+        compiler_fence(Ordering::SeqCst);
     }
 
     #[inline(always)]
     pub fn swap(x: usize) -> usize {
-        let old: usize;
-        unsafe {
-            core::arch::asm!(
-                "csrrw {old}, satp, {new}",
-                old = out(reg) old,
-                new = in(reg) x,
-            );
-        }
+        compiler_fence(Ordering::SeqCst);
+        let old = _csrrw!("satp", x);
+        compiler_fence(Ordering::SeqCst);
         old
     }
 }
@@ -249,7 +367,7 @@ pub mod stval {
     }
 }
 
-pub mod sscause {
+pub mod scause {
     #[inline(always)]
     pub fn read() -> usize {
         _csrr!("scause")
@@ -273,54 +391,27 @@ pub mod stimecmp {
     }
 }
 
-pub mod sie {
-    // Supervisor Interrupt Enable
-    pub const SIE_SSIE: usize = 1 << 1; // software
-    pub const SIE_STIE: usize = 1 << 5; // Timer
-    pub const SIE_SEIE: usize = 1 << 9; // external
+#[macro_export]
+macro_rules! amoadd_reg_w {
+    ($base_reg:literal, $value:expr, $rd_output:ident) => {
+        unsafe {
+            core::arch::asm!(
+                concat!("amoadd.w {rd}, {rs2}, (", $base_reg, ")"),
+                rd = out(reg) $rd_output,
+                rs2 = in(reg) $value,
+                options(nostack),
+            );
+        }
+    };
 
-    #[inline(always)]
-    pub fn read() -> usize {
-        _csrr!("sie")
-    }
-
-    #[inline(always)]
-    pub fn write(x: usize) {
-        _csrw!("sie", x);
-    }
-
-    #[inline(always)]
-    pub fn read_stie() -> bool {
-        (read() & SIE_STIE) != 0
-    }
-
-    #[inline(always)]
-    pub fn set_stie() {
-        write(read() | SIE_STIE);
-    }
-
-    #[inline(always)]
-    pub fn clear_stie() {
-        write(read() & !SIE_STIE);
-    }
-
-    #[inline(always)]
-    pub fn set_ssie() {
-        write(read() | SIE_SSIE);
-    }
-
-    #[inline(always)]
-    pub fn clear_ssie() {
-        write(read() & !SIE_SSIE);
-    }
-
-    #[inline(always)]
-    pub fn set_seie() {
-        write(read() | SIE_SEIE);
-    }
-
-    #[inline(always)]
-    pub fn clear_seie() {
-        write(read() & !SIE_SEIE);
-    }
+    ($base_reg:literal, $value:expr) => {
+        unsafe {
+            core::arch::asm!(
+                concat!("amoadd.w {rd}, {rs2}, (", $base_reg, ")"),
+                rd = out(reg) _,
+                rs2 = in(reg) $value,
+                options(nostack),
+            );
+        }
+    };
 }
