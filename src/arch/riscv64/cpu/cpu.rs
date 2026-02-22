@@ -60,6 +60,12 @@ pub unsafe fn set_this_cpu(cpu_instance: *mut Cpu) {
     regs::tp::write(cpu_instance as usize);
 }
 
+pub fn sie_trap_on() {
+    regs::sie::set_stie();
+    regs::sie::set_ssie();
+    regs::sie::set_seie();
+}
+
 #[inline(always)]
 pub fn irq_get() -> bool {
     regs::sstatus::read_sie()

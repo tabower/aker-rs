@@ -8,6 +8,7 @@ pub use current::cpu;
 pub use current::init;
 pub use current::io;
 pub use current::mm;
+pub use current::trap;
 pub use current::vm;
 
 #[cfg(target_arch = "riscv64")]
