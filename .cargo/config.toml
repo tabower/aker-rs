@@ -7,5 +7,7 @@ rustflags = [
     "-Cforce-frame-pointers=yes",
     "-C", "target-feature=+m,+a,+c",
     "-C", "target-feature=+zihintpause",
+    "-C", "link-arg=-nostdlib",
+    "-C", "link-arg=-nostartfiles",
 ]
 runner = "scripts/qemu-runner.sh"
