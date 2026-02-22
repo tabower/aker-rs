@@ -19,6 +19,8 @@ pub mod tests;
 /// After booting from the architecture, enter this entry.
 #[unsafe(no_mangle)]
 pub extern "C" fn start_kernel() -> ! {
+    kernel::cpu::init::boot_cpu_init();
+
     arch::init::init();
 
     #[cfg(test)]

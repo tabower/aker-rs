@@ -1,4 +1,4 @@
 pub mod cpu;
-pub mod regs;
+pub mod init;
 
 pub use cpu::*;

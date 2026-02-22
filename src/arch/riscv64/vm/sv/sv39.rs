@@ -1,7 +1,6 @@
 use super::super::pagetable::PageLevel;
 use super::super::pagetable::PageTableConfig;
 
-/// RISC-V Sv39 Config
 #[derive(Clone, Copy)]
 pub struct Sv39Config;
 

@@ -132,7 +132,7 @@ impl<C: PageTableConfig, A: Allocator> PageTableRoot<C, A> {
     }
 
     #[inline(always)]
-    pub(super) fn root_table(&mut self) -> &mut PageTable {
+    pub fn root_table(&mut self) -> &mut PageTable {
         unsafe { self.root.as_mut() }
     }
 }
