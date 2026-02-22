@@ -35,7 +35,7 @@ impl<'a> Dtb<'a> {
     }
 
     #[inline(always)]
-    pub fn for_each_mem<F>(&self, mut f: F)
+    pub fn for_each_mem<F>(&self, f: F)
     where
         F: FnMut(MemRegion),
     {

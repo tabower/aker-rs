@@ -1,9 +1,7 @@
 // props.rs
 use fdt::node::FdtNode;
 
-const PROP_DEVICE_TYPE: &str = "device_type";
-
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy)]
 pub struct RegDesc {
     pub base: usize,
     pub size: usize,
