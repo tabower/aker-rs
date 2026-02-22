@@ -5,7 +5,7 @@ use super::linker;
 
 #[inline(always)]
 pub(super) fn copy_dtb_to_ekernel(dtb_addr: usize) -> (usize, usize) {
-    let dtb = unsafe { dtb::Dtb::new(dtb_addr) }
+    let dtb = dtb::Dtb::new(dtb_addr)
         .expect("[Boot] Device tree information is incorrect.");
 
     let size = dtb.total_size();

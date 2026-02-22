@@ -25,6 +25,14 @@ static mut EARLY_BOOT_INFO: EarlyBootInfo = EarlyBootInfo {
     dtb_paddr: 0,
 };
 
+pub fn dtb_addr() -> usize {
+    unsafe { EARLY_BOOT_INFO.dtb_paddr }
+}
+
+pub fn alloc_end() -> usize {
+    unsafe { EARLY_BOOT_INFO.alloc_end }
+}
+
 /// Called during the assembly boot phase, it performs:
 /// - Copies the device tree immediately adjacent to the kernel binary
 ///   for subsequent memory allocation

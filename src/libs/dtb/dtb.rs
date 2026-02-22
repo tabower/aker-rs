@@ -12,11 +12,7 @@ impl<'a> Dtb<'a> {
     const MAGIC_OFFSET: usize = 0;
     const SIZE_OFFSET: usize = 4;
 
-    /// # Safety
-    /// The caller guarantees the validity of the passed address.
-    /// Unmapped or inaccessible memory will result in a page fault,
-    /// which we cannot handle.
-    pub unsafe fn new(dtb_addr: usize) -> Option<Self> {
+    pub fn new(dtb_addr: usize) -> Option<Self> {
         // check magic
         let magic = read_be_u32_at(dtb_addr, Self::MAGIC_OFFSET);
         if magic != Self::MAGIC {
@@ -51,8 +47,8 @@ impl<'a> Dtb<'a> {
     }
 
     #[inline(always)]
-    pub fn cpu_count(&self) {
-        self.raw.cpu_count();
+    pub fn cpu_count(&self) -> usize {
+        self.raw.cpu_count()
     }
 
     #[inline(always)]
