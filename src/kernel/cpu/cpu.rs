@@ -272,3 +272,15 @@ pub(super) static BOOT_CPU: UnsafeStatic<Cpu> =
 pub unsafe fn set_this_cpu(cpu_instance: *mut Cpu) {
     unsafe { arch_cpu::set_this_cpu(cpu_instance) }
 }
+
+/// Number of CPUs detected in the system
+/// This variable must be initialized before memory allocation is
+/// established.
+static NR_CPUS: UnsafeStatic<usize> = UnsafeStatic::uninit();
+pub unsafe fn set_nr_cpus(nr: usize) {
+    unsafe { NR_CPUS.init(nr) };
+}
+
+pub unsafe fn get_nr_cpus() -> usize {
+    unsafe { *NR_CPUS.get() }
+}

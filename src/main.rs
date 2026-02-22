@@ -6,6 +6,7 @@
 
 pub mod arch;
 pub mod build_gen;
+pub mod config;
 pub mod drivers;
 pub mod kernel;
 pub mod libs;
