@@ -11,22 +11,13 @@ use core::ptr::NonNull;
 
 use crate::prelude::*;
 
-use super::addr::PhysAddr;
-use super::numa::NId;
+use super::super::addr::PhysAddr;
+use super::super::numa::NId;
 
-/// NUMA Allocation Policy
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum NumaPolicy {
-    /// Only allocate on the specified node.
-    /// Fail immediately if that node has insufficient memory.
-    Strict,
+use super::flags::AllocFlags;
+use super::numa_policy::NumaPolicy;
 
-    /// Try the specified node first.
-    /// If insufficient, fall back to other nodes by NUMA distance.
-    Preferred,
-}
-
-/// NUMA-aware Physical page frame allocator
+/// Physical page frame allocator
 ///
 /// Implementors must use interior mutability (e.g. `SpinLock<Inner>`)
 /// because all methods take `&self`, not `&mut self`.
@@ -44,6 +35,7 @@ pub trait PageAllocator {
     fn alloc_pages(
         &self,
         order: u8,
+        flags: AllocFlags,
         nid: NId,
         policy: NumaPolicy,
     ) -> KResult<PageBox<'_>>;
@@ -55,28 +47,37 @@ pub trait PageAllocator {
     fn free_pages(&self, pa: PhysAddr, order: u8) -> KResult<()>;
 
     /// Allocate on the current node, allow fallback.
-    fn alloc_pages_local(&self, order: u8) -> KResult<PageBox<'_>> {
+    fn alloc_pages_local(
+        &self,
+        order: u8,
+        flags: AllocFlags,
+    ) -> KResult<PageBox<'_>> {
         let nid = self.current_node();
-        self.alloc_pages(order, nid, NumaPolicy::Preferred)
+        self.alloc_pages(order, flags, nid, NumaPolicy::Preferred)
     }
 
     /// Allocate strictly on the specified node. No fallback.
     fn alloc_pages_exact(
         &self,
         order: u8,
+        flags: AllocFlags,
         nid: NId,
     ) -> KResult<PageBox<'_>> {
-        self.alloc_pages(order, nid, NumaPolicy::Strict)
+        self.alloc_pages(order, flags, nid, NumaPolicy::Strict)
     }
 
     /// Single page, current node, allow fallback.
-    fn alloc_page(&self) -> KResult<PageBox<'_>> {
-        self.alloc_pages_local(0)
+    fn alloc_page(&self, flags: AllocFlags) -> KResult<PageBox<'_>> {
+        self.alloc_pages_local(0, flags)
     }
 
     /// Single page, strictly on specified node.
-    fn alloc_page_exact(&self, nid: NId) -> KResult<PageBox<'_>> {
-        self.alloc_pages_exact(0, nid)
+    fn alloc_page_exact(
+        &self,
+        flags: AllocFlags,
+        nid: NId,
+    ) -> KResult<PageBox<'_>> {
+        self.alloc_pages_exact(0, flags, nid)
     }
 }
 
@@ -92,7 +93,7 @@ pub struct PageBox<'a> {
 
 impl<'a> PageBox<'a> {
     /// Only constructable by `PageAllocator` implementations.
-    pub fn new(
+    pub(crate) fn new(
         base: PhysAddr,
         order: u8,
         allocator: &'a (dyn PageAllocator + Sync),
@@ -171,6 +172,7 @@ pub trait ObjectAllocator {
     fn alloc_raw(
         &self,
         layout: Layout,
+        flags: AllocFlags,
         nid: NId,
         policy: NumaPolicy,
     ) -> KResult<NonNull<u8>>;
@@ -192,6 +194,7 @@ pub trait ObjectAllocator {
     fn alloc_with<T>(
         &self,
         val: T,
+        flags: AllocFlags,
         nid: NId,
         policy: NumaPolicy,
     ) -> KResult<ObjBox<'_, T>>
@@ -200,33 +203,38 @@ pub trait ObjectAllocator {
         Self: Sync,
     {
         let ptr = self
-            .alloc_raw(Layout::new::<T>(), nid, policy)?
+            .alloc_raw(Layout::new::<T>(), flags, nid, policy)?
             .cast::<T>();
         unsafe { ptr.as_ptr().write(val) };
         Ok(ObjBox::new(ptr, self))
     }
 
     /// Allocate T on the current node, allow fallback.
-    fn alloc<T>(&self, val: T) -> KResult<ObjBox<'_, T>>
+    fn alloc<T>(
+        &self,
+        val: T,
+        flags: AllocFlags,
+    ) -> KResult<ObjBox<'_, T>>
     where
         Self: Sized,
         Self: Sync,
     {
         let nid = self.current_node();
-        self.alloc_with(val, nid, NumaPolicy::Preferred)
+        self.alloc_with(val, flags, nid, NumaPolicy::Preferred)
     }
 
     /// Allocate T strictly on the specified node.
     fn alloc_exact<T>(
         &self,
         val: T,
+        flags: AllocFlags,
         nid: NId,
     ) -> KResult<ObjBox<'_, T>>
     where
         Self: Sized,
         Self: Sync,
     {
-        self.alloc_with(val, nid, NumaPolicy::Strict)
+        self.alloc_with(val, flags, nid, NumaPolicy::Strict)
     }
 }
 
