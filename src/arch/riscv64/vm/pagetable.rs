@@ -6,7 +6,7 @@ use crate::mm::addr::PhysAddr;
 use crate::mm::addr::PhysPageNum;
 use crate::mm::addr::VirtAddr;
 use crate::mm::align::AlignOps;
-use crate::mm::allocator::Allocator;
+use crate::mm::allocator::PageAllocator;
 
 use super::pte;
 
@@ -103,12 +103,12 @@ pub trait PageTableConfig: 'static + Copy {
 }
 
 /// Pagetable Root
-pub struct PageTableRoot<C: PageTableConfig, A: Allocator> {
+pub struct PageTableRoot<C: PageTableConfig, A: PageAllocator> {
     pub(super) root: NonNull<PageTable>,
     _marker: PhantomData<(C, A)>,
 }
 
-impl<C: PageTableConfig, A: Allocator> PageTableRoot<C, A> {
+impl<C: PageTableConfig, A: PageAllocator> PageTableRoot<C, A> {
     pub fn from_pa(pa: PhysAddr) -> Self {
         debug_assert!(pa.is_page_aligned());
         Self {
@@ -137,11 +137,11 @@ impl<C: PageTableConfig, A: Allocator> PageTableRoot<C, A> {
     }
 }
 
-unsafe impl<C: PageTableConfig, A: Allocator> Send
+unsafe impl<C: PageTableConfig, A: PageAllocator> Send
     for PageTableRoot<C, A>
 {
 }
-unsafe impl<C: PageTableConfig, A: Allocator> Sync
+unsafe impl<C: PageTableConfig, A: PageAllocator> Sync
     for PageTableRoot<C, A>
 {
 }
