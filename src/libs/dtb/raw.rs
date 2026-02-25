@@ -20,7 +20,7 @@ impl<'a> RawDtb<'a> {
 
     pub(super) fn for_each_mem<F>(&self, mut f: F)
     where
-        F: FnMut(MemRegion),
+        F: FnMut(DtbMemRegion),
     {
         for node in self.fdt.find_all_nodes("/memory") {
             let numa_id = read_numa_id(&node);
@@ -30,11 +30,11 @@ impl<'a> RawDtb<'a> {
             let Some(reg) = node.reg() else { continue };
 
             for r in reg {
-                f(MemRegion {
+                f(DtbMemRegion {
                     base: r.starting_address as usize,
                     size: r.size.unwrap_or(0),
                     numa_id,
-                    kind: MemKind::Ram,
+                    kind: DtbMemKind::Ram,
                     hotpluggable,
                 });
             }

@@ -1,5 +1,6 @@
 #![no_std]
 #![no_main]
+#![deny(unused_must_use)]
 #![feature(custom_test_frameworks)]
 #![test_runner(crate::tests::test_runner)]
 #![reexport_test_harness_main = "__tests_main"]

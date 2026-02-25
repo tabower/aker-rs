@@ -8,5 +8,5 @@ pub(super) mod raw;
 
 pub use cpu::Cpu;
 pub use dtb::*;
-pub use mem::MemKind;
-pub use mem::MemRegion;
+pub use mem::DtbMemKind;
+pub use mem::DtbMemRegion;

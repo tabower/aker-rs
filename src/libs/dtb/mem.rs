@@ -1,15 +1,15 @@
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum MemKind {
+pub enum DtbMemKind {
     Ram,      // /memory node
     Reserved, // /reserved-memory node
     Mmio,     // Device-mapped I/O
 }
 
-pub struct MemRegion {
+pub struct DtbMemRegion {
     pub base: usize,
     pub size: usize,
     pub numa_id: Option<usize>, /* The DTB may not contain NUMA
                                  * information */
-    pub kind: MemKind,
+    pub kind: DtbMemKind,
     pub hotpluggable: bool,
 }

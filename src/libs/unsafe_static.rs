@@ -26,6 +26,12 @@ impl<T> UnsafeStatic<T> {
         }
     }
 
+    pub const fn zeroed() -> Self {
+        Self {
+            inner: UnsafeCell::new(MaybeUninit::zeroed()),
+        }
+    }
+
     /// Write values at runtime (for uninit scenarios)
     ///
     /// # Safety

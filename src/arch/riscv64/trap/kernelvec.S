@@ -3,7 +3,7 @@
     sd     ra, 0(sp)
     sd     sp, 8(sp)
     sd     gp, 16(sp)
-# sd tp, 24(sp) # tp = hartid，not save
+# sd tp, 24(sp) # tp = hartid, not save
     sd     t0, 32(sp)
     sd     t1, 40(sp)
     sd     t2, 48(sp)

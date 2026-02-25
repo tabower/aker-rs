@@ -123,7 +123,7 @@ impl KErr {
 #[macro_export]
 macro_rules! KErr {
     ($no:expr, $msg:expr) => {
-        Err($crate::libs::errors::KErr::new($no, $msg))
+        Err($crate::libs::error::KErr::new($no, $msg))
     };
 }
 

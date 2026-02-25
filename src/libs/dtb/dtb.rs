@@ -1,5 +1,5 @@
 use super::cpu::Cpu;
-use super::mem::MemRegion;
+use super::mem::DtbMemRegion;
 use super::raw;
 use crate::libs::endian::read_be_u32_at;
 
@@ -33,7 +33,7 @@ impl<'a> Dtb<'a> {
     #[inline(always)]
     pub fn for_each_mem<F>(&self, f: F)
     where
-        F: FnMut(MemRegion),
+        F: FnMut(DtbMemRegion),
     {
         self.raw.for_each_mem(f);
     }
