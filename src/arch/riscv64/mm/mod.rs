@@ -1,3 +1,4 @@
+pub mod init;
 pub mod page;
 
 pub use page::PAGE_MASK;

@@ -12,7 +12,7 @@ use core::ptr::NonNull;
 use crate::prelude::*;
 
 use super::super::addr::PhysAddr;
-use super::super::numa::NId;
+use super::super::numa;
 
 use super::flags::AllocFlags;
 use super::numa_policy::NumaPolicy;
@@ -24,9 +24,6 @@ use super::numa_policy::NumaPolicy;
 /// This is required so `PageBox` can hold `&dyn PageAllocator` and
 /// call `free_pages` in its `Drop`.
 pub trait PageAllocator {
-    /// Returns the NUMA node of the current CPU.
-    fn current_node(&self) -> NId;
-
     /// Allocate 2^order contiguous physical page frames.
     ///
     /// - `order`: allocation order (2^order pages)
@@ -36,7 +33,7 @@ pub trait PageAllocator {
         &self,
         order: u8,
         flags: AllocFlags,
-        nid: NId,
+        nid: numa::NId,
         policy: NumaPolicy,
     ) -> KResult<PageBox<'_>>;
 
@@ -52,7 +49,7 @@ pub trait PageAllocator {
         order: u8,
         flags: AllocFlags,
     ) -> KResult<PageBox<'_>> {
-        let nid = self.current_node();
+        let nid = numa::current_node();
         self.alloc_pages(order, flags, nid, NumaPolicy::Preferred)
     }
 
@@ -61,7 +58,7 @@ pub trait PageAllocator {
         &self,
         order: u8,
         flags: AllocFlags,
-        nid: NId,
+        nid: numa::NId,
     ) -> KResult<PageBox<'_>> {
         self.alloc_pages(order, flags, nid, NumaPolicy::Strict)
     }
@@ -75,7 +72,7 @@ pub trait PageAllocator {
     fn alloc_page_exact(
         &self,
         flags: AllocFlags,
-        nid: NId,
+        nid: numa::NId,
     ) -> KResult<PageBox<'_>> {
         self.alloc_pages_exact(0, flags, nid)
     }
@@ -164,16 +161,13 @@ unsafe impl<'a> Sync for PageBox<'a> {}
 /// Kernel object allocator
 ///
 /// Same `&self` convention as `PageAllocator` (interior mutability).
-pub trait ObjectAllocator {
-    /// Returns the NUMA node of the current CPU.
-    fn current_node(&self) -> NId;
-
+pub trait KAllocator {
     /// Allocate raw memory with the given layout.
     fn alloc_raw(
         &self,
         layout: Layout,
         flags: AllocFlags,
-        nid: NId,
+        nid: numa::NId,
         policy: NumaPolicy,
     ) -> KResult<NonNull<u8>>;
 
@@ -183,7 +177,7 @@ pub trait ObjectAllocator {
     ///
     /// - `ptr` must have been returned by `alloc_raw` with the same
     ///   layout.
-    /// - `ptr` must not have been freed before.
+    /// - `ptr` current_nodemust not have been freed before.
     unsafe fn free_raw(
         &self,
         ptr: NonNull<u8>,
@@ -195,9 +189,9 @@ pub trait ObjectAllocator {
         &self,
         val: T,
         flags: AllocFlags,
-        nid: NId,
+        nid: numa::NId,
         policy: NumaPolicy,
-    ) -> KResult<ObjBox<'_, T>>
+    ) -> KResult<KBox<'_, T>>
     where
         Self: Sized,
         Self: Sync,
@@ -206,7 +200,7 @@ pub trait ObjectAllocator {
             .alloc_raw(Layout::new::<T>(), flags, nid, policy)?
             .cast::<T>();
         unsafe { ptr.as_ptr().write(val) };
-        Ok(ObjBox::new(ptr, self))
+        Ok(KBox::new(ptr, self))
     }
 
     /// Allocate T on the current node, allow fallback.
@@ -214,12 +208,12 @@ pub trait ObjectAllocator {
         &self,
         val: T,
         flags: AllocFlags,
-    ) -> KResult<ObjBox<'_, T>>
+    ) -> KResult<KBox<'_, T>>
     where
         Self: Sized,
         Self: Sync,
     {
-        let nid = self.current_node();
+        let nid = numa::current_node();
         self.alloc_with(val, flags, nid, NumaPolicy::Preferred)
     }
 
@@ -228,8 +222,8 @@ pub trait ObjectAllocator {
         &self,
         val: T,
         flags: AllocFlags,
-        nid: NId,
-    ) -> KResult<ObjBox<'_, T>>
+        nid: numa::NId,
+    ) -> KResult<KBox<'_, T>>
     where
         Self: Sized,
         Self: Sync,
@@ -243,16 +237,16 @@ pub trait ObjectAllocator {
 /// - Not `Clone`, not `Copy` — ownership is unique
 /// - Implements `Deref`/`DerefMut` for transparent access
 /// - `Drop` calls `drop_in_place(T)` then `free_raw`
-pub struct ObjBox<'a, T> {
+pub struct KBox<'a, T> {
     ptr: NonNull<T>,
-    allocator: &'a (dyn ObjectAllocator + Sync),
+    allocator: &'a (dyn KAllocator + Sync),
 }
 
-impl<'a, T> ObjBox<'a, T> {
+impl<'a, T> KBox<'a, T> {
     /// Only constructable by `ObjectAllocator` implementations.
     pub(crate) fn new(
         ptr: NonNull<T>,
-        allocator: &'a (dyn ObjectAllocator + Sync),
+        allocator: &'a (dyn KAllocator + Sync),
     ) -> Self {
         Self { ptr, allocator }
     }
@@ -280,7 +274,7 @@ impl<'a, T> ObjBox<'a, T> {
     }
 }
 
-impl<T> Deref for ObjBox<'_, T> {
+impl<T> Deref for KBox<'_, T> {
     type Target = T;
 
     #[inline(always)]
@@ -289,26 +283,26 @@ impl<T> Deref for ObjBox<'_, T> {
     }
 }
 
-impl<T> DerefMut for ObjBox<'_, T> {
+impl<T> DerefMut for KBox<'_, T> {
     #[inline(always)]
     fn deref_mut(&mut self) -> &mut T {
         unsafe { self.ptr.as_mut() }
     }
 }
 
-impl<T: fmt::Debug> fmt::Debug for ObjBox<'_, T> {
+impl<T: fmt::Debug> fmt::Debug for KBox<'_, T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Debug::fmt(self.deref(), f)
     }
 }
 
-impl<T: fmt::Display> fmt::Display for ObjBox<'_, T> {
+impl<T: fmt::Display> fmt::Display for KBox<'_, T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Display::fmt(self.deref(), f)
     }
 }
 
-impl<T> Drop for ObjBox<'_, T> {
+impl<T> Drop for KBox<'_, T> {
     fn drop(&mut self) {
         unsafe {
             // 1. Drop the inner value
@@ -329,5 +323,5 @@ impl<T> Drop for ObjBox<'_, T> {
     }
 }
 
-unsafe impl<'a, T: Send> Send for ObjBox<'a, T> {}
-unsafe impl<'a, T: Sync> Sync for ObjBox<'a, T> {}
+unsafe impl<'a, T: Send> Send for KBox<'a, T> {}
+unsafe impl<'a, T: Sync> Sync for KBox<'a, T> {}

@@ -55,3 +55,7 @@ pub fn cpu_to_node(cid: CpuId) -> NId {
 pub fn node_cpumask(nid: NId) -> &'static CpuMask {
     &unsafe { GLOBAL_CPU_NODE_MAP.get() }.node_to_cpu[nid.get()]
 }
+
+pub fn current_node() -> NId {
+    unimplemented!("[NUMA] current_node")
+}
