@@ -36,6 +36,11 @@ impl PhysAddr {
     }
 
     #[inline(always)]
+    pub fn from_ptr<T>(ptr: *const T) -> Self {
+        Self(ptr as usize)
+    }
+
+    #[inline(always)]
     pub const fn as_usize(&self) -> usize {
         self.0
     }

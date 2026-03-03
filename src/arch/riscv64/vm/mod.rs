@@ -1,4 +1,4 @@
-pub mod pagetable;
+pub mod consts;
 pub mod pte;
 
 pub(super) mod sv;

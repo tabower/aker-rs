@@ -1,5 +1,5 @@
-use super::super::pagetable::PageLevel;
-use super::super::pagetable::PageTableConfig;
+use crate::kernel::vm::level::PageLevel;
+use crate::kernel::vm::pagetable::PageTableConfig;
 
 #[derive(Clone, Copy)]
 pub struct Sv39Config;

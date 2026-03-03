@@ -1,5 +1,5 @@
-use super::super::pagetable::PageLevel;
-use super::super::pagetable::PageTableConfig;
+use crate::kernel::vm::level::PageLevel;
+use crate::kernel::vm::pagetable::PageTableConfig;
 
 /// RISC-V Sv48 Config
 #[derive(Clone, Copy)]

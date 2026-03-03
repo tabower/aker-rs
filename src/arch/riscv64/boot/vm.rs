@@ -1,8 +1,8 @@
-use crate::arch::vm::pagetable::PageTable;
-use crate::arch::vm::pagetable::PageTableConfig;
 use crate::arch::vm::pte::PTE;
 use crate::arch::vm::pte::PTEFlags;
 use crate::arch::vm::sv::SvPageConfig;
+use crate::kernel::vm::pagetable::PageTable;
+use crate::kernel::vm::pagetable::PageTableConfig;
 use crate::mm::addr::PhysAddr;
 use crate::mm::addr::VirtAddr;
 use crate::mm::align::AlignOps;
@@ -13,7 +13,6 @@ use super::linker;
 /// Physical level corresponding to 1GB large pages
 const GIGAPAGE_PHYS_LEVEL: usize = 2;
 const GIGABYTE: usize = 1024 * 1024 * 1024;
-const BOOT_FLAGS: PTEFlags = PTEFlags::BOOT;
 
 /// Generic 1GB large page mapping function
 ///
@@ -39,7 +38,7 @@ unsafe fn map_1gb_entry(
         // SV48: The root page table is at the PGD level and requires
         // indexing to PUD first.
         3 => {
-            let pgd_idx = PageTable::index_of(virt, root_phys_level);
+            let pgd_idx = PTE::index_of(virt, root_phys_level);
             let pgd_entry = unsafe { (*root_table).get_mut(pgd_idx) };
 
             if pgd_entry.is_valid() {
@@ -51,10 +50,10 @@ unsafe fn map_1gb_entry(
                     (*new_table).clear();
                 }
 
-                *pgd_entry = PTE::new(
-                    PhysAddr::new(new_table as usize),
-                    PTEFlags::V,
+                *pgd_entry = PTE::new_table(
+                    PhysAddr::from_ptr(new_table).to_ppn(),
                 );
+
                 new_table
             }
         }
@@ -66,7 +65,7 @@ unsafe fn map_1gb_entry(
     };
 
     // Fill in entries at the 1GB level (physical level 2)
-    let entry_idx = PageTable::index_of(virt, GIGAPAGE_PHYS_LEVEL);
+    let entry_idx = PTE::index_of(virt, GIGAPAGE_PHYS_LEVEL);
     let entry = unsafe { (*gigapage_table).get_mut(entry_idx) };
 
     debug_assert!(
@@ -74,7 +73,8 @@ unsafe fn map_1gb_entry(
         "1GB entry already mapped: {:#x}",
         virt.as_usize()
     );
-    *entry = PTE::new(phys, BOOT_FLAGS);
+
+    *entry = PTE::new_leaf(phys.to_ppn(), PTEFlags::BOOT);
 }
 
 /// Create the startup page table
