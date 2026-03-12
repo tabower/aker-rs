@@ -2,6 +2,7 @@ use crate::kernel::vm::level::PageLevel;
 use crate::kernel::vm::pagetable::PageTableConfig;
 
 #[derive(Clone, Copy)]
+#[allow(dead_code)]
 pub struct Sv39Config;
 
 impl PageTableConfig for Sv39Config {

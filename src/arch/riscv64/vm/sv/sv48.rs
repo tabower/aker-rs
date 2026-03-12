@@ -3,6 +3,7 @@ use crate::kernel::vm::pagetable::PageTableConfig;
 
 /// RISC-V Sv48 Config
 #[derive(Clone, Copy)]
+#[allow(dead_code)]
 pub struct Sv48Config;
 
 impl PageTableConfig for Sv48Config {
