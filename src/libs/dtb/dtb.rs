@@ -1,7 +1,8 @@
-use super::cpu::Cpu;
+use crate::libs::endian::read_be_u32_at;
+
+use super::cpu::DtbCpu;
 use super::mem::DtbMemRegion;
 use super::raw;
-use crate::libs::endian::read_be_u32_at;
 
 pub struct Dtb<'a> {
     raw: raw::RawDtb<'a>,
@@ -41,7 +42,7 @@ impl<'a> Dtb<'a> {
     #[inline(always)]
     pub fn for_each_cpu<F>(&self, f: F)
     where
-        F: FnMut(Cpu),
+        F: FnMut(DtbCpu),
     {
         self.raw.for_each_cpu(f);
     }

@@ -1,5 +1,5 @@
-use crate::kernel::vm::level::PageLevel;
-use crate::kernel::vm::pagetable::PageTableConfig;
+use crate::mm::vm::config::PageTableConfig;
+use crate::mm::vm::level::PageLevel;
 
 #[derive(Clone, Copy)]
 #[allow(dead_code)]
@@ -11,10 +11,9 @@ impl PageTableConfig for Sv39Config {
     fn logical_to_physical(level: PageLevel) -> Option<usize> {
         match level {
             PageLevel::PGD => Some(2), // PGD = Level 2
-            PageLevel::PUD => Some(2), /* PUD = Level 2 (collapsed */
+            // PageLevel::PUD => Some(2), // PUD = Level 2 (collapsed
             // to PGD)
-            PageLevel::PMD => Some(1), // PMD = Level 1
-            PageLevel::PTE => Some(0), // PTE = Level 0
+            _ => Some(level as usize),
         }
     }
 

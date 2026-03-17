@@ -1,5 +1,5 @@
 #[derive(Debug, Clone, Copy)]
-pub struct Cpu {
+pub struct DtbCpu {
     /// CPU ID (hart ID for RISC-V, APIC ID for x86)
     pub id: usize,
     /// NUMA node ID (None if not NUMA system)

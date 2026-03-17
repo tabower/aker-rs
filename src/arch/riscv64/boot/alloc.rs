@@ -1,4 +1,5 @@
 use crate::arch::mm::PAGE_SIZE;
+use crate::prelude::*;
 
 pub(super) struct BootAllocator {
     next_free: usize,
@@ -23,10 +24,8 @@ impl BootAllocator {
         paddr
     }
 
-    /// Obtain the end position of the current allocator (the next
-    /// available physical address)
     #[inline(always)]
-    pub(super) fn end(&self) -> usize {
+    pub(super) fn end(&mut self) -> usize {
         self.next_free
     }
 }

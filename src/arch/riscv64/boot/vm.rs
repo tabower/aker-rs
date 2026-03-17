@@ -1,11 +1,13 @@
 use crate::arch::vm::pte::PTE;
 use crate::arch::vm::pte::PTEFlags;
 use crate::arch::vm::sv::SvPageConfig;
-use crate::kernel::vm::pagetable::PageTable;
-use crate::kernel::vm::pagetable::PageTableConfig;
+
 use crate::mm::addr::PhysAddr;
 use crate::mm::addr::VirtAddr;
 use crate::mm::align::AlignOps;
+use crate::mm::vm::config::PageTableConfig;
+use crate::mm::vm::level::PageLevel;
+use crate::mm::vm::pagetable::PageTable;
 
 use super::alloc::BootAllocator;
 use super::linker;
@@ -28,18 +30,22 @@ unsafe fn map_1gb_entry(
     // SV39: PHYSICAL_LEVELS=3, root_phys_level=2
     // SV48: PHYSICAL_LEVELS=4, root_phys_level=3
 
-    let root_phys_level = SvPageConfig::PHYSICAL_LEVELS - 1;
+    let root_phys_level =
+        PageLevel::form_usize(SvPageConfig::PHYSICAL_LEVELS - 1)
+            .unwrap();
 
     let gigapage_table: *mut PageTable = match root_phys_level {
         // SV39: The root page table is at the 1GB (PUD) level and is
         // used directly.
-        2 => root_table,
+        PageLevel::PMD => root_table,
 
         // SV48: The root page table is at the PGD level and requires
         // indexing to PUD first.
-        3 => {
-            let pgd_idx = PTE::index_of(virt, root_phys_level);
-            let pgd_entry = unsafe { (*root_table).get_mut(pgd_idx) };
+        PageLevel::PGD => {
+            let pgd_idx = virt.to_ppn().level_index(root_phys_level);
+
+            let pgd_entry =
+                unsafe { &mut (*root_table).entries_mut()[pgd_idx] };
 
             if pgd_entry.is_valid() {
                 pgd_entry.pa().to_virt().as_mut_ptr::<PageTable>()
@@ -65,8 +71,12 @@ unsafe fn map_1gb_entry(
     };
 
     // Fill in entries at the 1GB level (physical level 2)
-    let entry_idx = PTE::index_of(virt, GIGAPAGE_PHYS_LEVEL);
-    let entry = unsafe { (*gigapage_table).get_mut(entry_idx) };
+    let entry_idx = virt.to_ppn().level_index(
+        PageLevel::form_usize(GIGAPAGE_PHYS_LEVEL).unwrap(),
+    );
+
+    let entry =
+        unsafe { &mut (*gigapage_table).entries_mut()[entry_idx] };
 
     debug_assert!(
         !entry.is_valid(),

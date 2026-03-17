@@ -1,6 +1,7 @@
-use super::cpu;
 use crate::config::CPUMASK_BITMAP_LEN;
 use crate::config::MAX_CPUS;
+
+use super::cpu;
 
 #[derive(Debug, Clone, Copy)]
 pub struct CpuMask {
@@ -56,7 +57,7 @@ impl CpuMask {
             mask: self,
             word_idx: 0,
             remaining: self.bits[0],
-            nr_cpus: unsafe { cpu::get_nr_cpus() },
+            nr_cpus: cpu::get_nr_cpus(),
         }
     }
 

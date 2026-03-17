@@ -83,3 +83,65 @@ pub const fn p2v_linear(paddr: usize) -> usize {
 pub const fn v2p_linear(vaddr: usize) -> usize {
     vaddr - KERNEL_OFFSET
 }
+
+/// Kernel-Section information
+#[derive(Debug, Clone, Copy)]
+pub struct KernelSection {
+    pub va_start: usize,
+    pub va_end: usize,
+    pub pa_start: usize,
+    pub size: usize,
+}
+
+impl KernelSection {
+    #[inline]
+    pub const fn new(va_start: usize, va_end: usize) -> Self {
+        Self {
+            va_start,
+            va_end,
+            pa_start: va_start - KERNEL_OFFSET,
+            size: va_end - va_start,
+        }
+    }
+
+    #[inline]
+    pub const fn from_pa(pa_start: usize, pa_end: usize) -> Self {
+        Self {
+            va_start: pa_start + KERNEL_OFFSET,
+            va_end: pa_end + KERNEL_OFFSET,
+            pa_start,
+            size: pa_end - pa_start,
+        }
+    }
+}
+
+/// .text
+#[inline]
+pub fn text_section() -> KernelSection {
+    KernelSection::new(_stext(), _etext())
+}
+
+/// .rodata
+#[inline]
+pub fn rodata_section() -> KernelSection {
+    KernelSection::new(_srodata(), _erodata())
+}
+
+/// .data
+#[inline]
+pub fn data_section() -> KernelSection {
+    KernelSection::new(_sdata(), _edata())
+}
+
+/// .data + .bss
+/// Mapping Space Together
+#[inline]
+pub fn data_bss_section() -> KernelSection {
+    KernelSection::new(_sdata(), _ebss())
+}
+
+/// _skernel - _ekernel
+#[inline]
+pub fn kernel_image() -> KernelSection {
+    KernelSection::new(_skernel(), _ekernel())
+}

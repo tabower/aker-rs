@@ -1,7 +1,8 @@
+use fdt::Fdt;
+
 use super::cpu::*;
 use super::mem::*;
 use super::numa::read_numa_id;
-use fdt::Fdt;
 
 pub(super) struct RawDtb<'a> {
     pub(super) fdt: Fdt<'a>,
@@ -43,7 +44,7 @@ impl<'a> RawDtb<'a> {
 
     pub(super) fn for_each_cpu<F>(&self, mut f: F)
     where
-        F: FnMut(Cpu),
+        F: FnMut(DtbCpu),
     {
         let Some(cpus_node) = self.fdt.find_node("/cpus") else {
             return;
@@ -59,7 +60,7 @@ impl<'a> RawDtb<'a> {
                 continue;
             };
 
-            f(Cpu {
+            f(DtbCpu {
                 id,
                 numa_id: read_numa_id(&node),
                 freq: read_clock_freq(&node),

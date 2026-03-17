@@ -59,7 +59,7 @@ pub(super) unsafe extern "C" fn early_boot_init(
 
     unsafe {
         EARLY_BOOT_INFO.alloc_end = allocator.end();
-        EARLY_BOOT_INFO.dtb_paddr = p2v_linear(dtb);
+        EARLY_BOOT_INFO.dtb_paddr = dtb;
     };
 
     mode | (root >> PAGE_SHIFT)

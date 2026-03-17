@@ -59,9 +59,9 @@ SECTIONS
         *(.sbss .sbss.*)
         *(.bss .bss.*)
     } :data
+    . = ALIGN(PAGE_SIZE_2M);
     PROVIDE(ebss = .);
 
-    . = ALIGN(PAGE_SIZE_2M);
     PROVIDE(ekernel = .);
 
     /DISCARD/ : {

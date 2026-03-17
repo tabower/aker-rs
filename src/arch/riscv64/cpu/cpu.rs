@@ -1,5 +1,6 @@
+use crate::kernel::sched::cpu;
+
 use super::regs;
-use crate::kernel::cpu::Cpu;
 
 #[derive(Debug, Clone, Copy)]
 pub struct Context {
@@ -51,12 +52,12 @@ pub fn amodec_preempt() {
 }
 
 #[inline(always)]
-pub fn this_cpu_raw() -> *mut Cpu {
-    regs::tp::read() as *mut Cpu
+pub fn this_cpu_raw() -> *mut cpu::Cpu {
+    regs::tp::read() as *mut cpu::Cpu
 }
 
 #[inline(always)]
-pub unsafe fn set_this_cpu(cpu_instance: *mut Cpu) {
+pub unsafe fn set_this_cpu(cpu_instance: *mut cpu::Cpu) {
     regs::tp::write(cpu_instance as usize);
 }
 

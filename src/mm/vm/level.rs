@@ -1,7 +1,4 @@
-//! Page table level abstraction
-
-use crate::arch::vm::consts::PT_LEVEL_BITS;
-use crate::mm::page::PAGE_SIZE;
+use super::consts::PT_LEVEL_BITS;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 #[repr(u8)]
@@ -16,14 +13,18 @@ pub enum PageLevel {
     PGD = 3,
 }
 
-impl PageLevel {
-    /// Number of supported levels
-    pub const MAX_LEVELS: usize = 5;
+/// Number of supported levels
+pub const MAX_LEVELS: usize = 4;
 
-    /// Create from numeric index
-    #[inline]
-    pub const fn from_index(index: usize) -> Option<Self> {
-        match index {
+impl PageLevel {
+    #[inline(always)]
+    pub const fn pages_per_entry(&self) -> usize {
+        1usize << (*self as usize * PT_LEVEL_BITS)
+    }
+
+    #[inline(always)]
+    pub const fn form_usize(level: usize) -> Option<Self> {
+        match level {
             0 => Some(Self::PTE),
             1 => Some(Self::PMD),
             2 => Some(Self::PUD),
@@ -32,22 +33,9 @@ impl PageLevel {
         }
     }
 
-    /// Convert to numeric index
-    #[inline]
-    pub const fn as_index(self) -> usize {
+    #[inline(always)]
+    pub const fn as_usize(self) -> usize {
         self as usize
-    }
-
-    /// Page size at this level
-    #[inline]
-    pub const fn page_size(self) -> usize {
-        PAGE_SIZE << (self.as_index() * PT_LEVEL_BITS)
-    }
-
-    /// Page offset mask at this level
-    #[inline]
-    pub const fn page_mask(self) -> usize {
-        self.page_size() - 1
     }
 
     /// Next lower level (towards PTE)

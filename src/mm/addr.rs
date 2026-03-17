@@ -8,6 +8,9 @@ use crate::arch::boot::linker;
 
 use super::align::AlignOps;
 use super::page::PAGE_SHIFT;
+use super::vm::consts::PT_ENTRIES;
+use super::vm::consts::PT_LEVEL_BITS;
+use super::vm::level::PageLevel;
 
 /// Physical memory address
 #[derive(Copy, Clone, Default, Ord, PartialOrd, Eq, PartialEq)]
@@ -103,6 +106,11 @@ impl VirtAddr {
         self.0 as *mut T
     }
 
+    #[inline(always)]
+    pub const fn to_ppn(&self) -> VirtPageNum {
+        VirtPageNum(self.0 >> PAGE_SHIFT)
+    }
+
     /// Convert to physical address
     ///
     /// ** TODO **
@@ -112,6 +120,7 @@ impl VirtAddr {
     /// needs. However, in the future, we may want to
     /// support more complex mappings (e.g., for user
     /// space, or high vaddr space).
+    #[inline(always)]
     pub const fn to_phys(&self) -> PhysAddr {
         PhysAddr(linker::v2p_linear(self.0))
     }
@@ -179,6 +188,24 @@ impl VirtPageNum {
     #[inline(always)]
     pub const fn next(&self) -> Self {
         Self(self.0 + 1)
+    }
+
+    /// Offset within the range covered by one entry at the given
+    /// level
+    #[inline]
+    pub const fn offset_within(&self, level: PageLevel) -> usize {
+        self.0 & (level.pages_per_entry() - 1)
+    }
+
+    ///  RiscV  SV39 VPN (27 bits):  [vpn2 | vpn1 | vpn0]
+    ///                        9bit   9bit   9bit
+    /// PTE (level 0):  shift  0, mask 0x1FF → bits [8:0]
+    /// PMD (level 1):  shift  9, mask 0x1FF → bits [17:9]
+    /// PUD (level 2):  shift 18, mask 0x1FF → bits [26:18]
+    #[inline]
+    pub const fn level_index(&self, level: PageLevel) -> usize {
+        (self.0 >> (level.as_usize() * PT_LEVEL_BITS))
+            & (PT_ENTRIES - 1)
     }
 }
 

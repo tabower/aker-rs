@@ -6,39 +6,15 @@ use core::sync::atomic::compiler_fence;
 
 use crate::arch::cpu as arch_cpu;
 use crate::arch::cpu::Context;
-use crate::kernel::sched::task;
+
+use crate::cpu::CpuDev;
+use crate::cpu::CpuId;
+
+use crate::cpu::numa::NId;
+
 use crate::libs::unsafe_static::UnsafeStatic;
 
-/// The CPU ID is switched along with every task during a
-/// CPU context switch.
-///
-/// We assume that the CPU ID is always valid at any point
-/// in time.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[repr(transparent)]
-pub struct CpuId(usize);
-
-impl CpuId {
-    #[inline(always)]
-    pub const fn new(cid: usize) -> Self {
-        Self(cid)
-    }
-
-    /// Returns the raw CPU id.
-    #[inline(always)]
-    pub const fn get(&self) -> usize {
-        self.0
-    }
-}
-
-impl core::fmt::Display for CpuId {
-    fn fmt(
-        &self,
-        f: &mut core::fmt::Formatter<'_>,
-    ) -> core::fmt::Result {
-        write!(f, "C{}", self.0)
-    }
-}
+use super::task::Task;
 
 bitflags! {
     #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -59,6 +35,13 @@ bitflags! {
 /// types:
 /// - [`PreemptGuard`]: obtained via [`preempt_disable`]
 /// - [`IrqGuard`]: obtained via [`irq_save`]
+///
+/// The CPU ID is switched along with every task during a
+/// CPU context switch.
+///
+/// We assume that the CPU ID is always valid at any point
+/// in time.
+
 #[repr(C, align(64))]
 pub struct Cpu {
     /// Preemption nesting depth.
@@ -71,23 +54,27 @@ pub struct Cpu {
     /// Current task on this CPU.
     ///
     /// In interrupt context, it should return `None` if accessed.
-    task: Option<NonNull<task::Task>>,
+    task: Option<NonNull<Task>>,
 
     /// Architecture-specific CPU context
     context: arch_cpu::Context,
 
-    id: CpuId,
+    dev: CpuDev,
+
     flags: CpuFlags,
-    ticks: u64,
 }
 
 impl Cpu {
-    /// This function should only be called during CPU initialization
-    /// when BOOT_CPU is triggered and should not be used at any other
-    /// time. To modify the CPU ID, use `CpuMut->set_id`.
     #[inline(always)]
-    pub(super) unsafe fn set_id(&mut self, id: CpuId) {
-        self.id = id;
+    pub unsafe fn set_id(&mut self, id: CpuId) {
+        self.dev.id = id;
+    }
+
+    /// The architecture itself determines where to
+    /// place the per-CPU pointers.
+    #[inline(always)]
+    pub unsafe fn set_this_cpu(cpu_instance: *mut Cpu) {
+        unsafe { arch_cpu::set_this_cpu(cpu_instance) }
     }
 }
 
@@ -108,7 +95,7 @@ pub struct CpuMut<'a> {
 impl<'a> CpuRef<'a> {
     #[inline(always)]
     pub fn id(&self) -> CpuId {
-        self.inner.id
+        self.inner.dev.id
     }
 
     #[inline(always)]
@@ -117,8 +104,13 @@ impl<'a> CpuRef<'a> {
     }
 
     #[inline(always)]
+    pub fn nid(&self) -> NId {
+        self.inner.dev.nid
+    }
+
+    #[inline(always)]
     pub fn ticks(&self) -> u64 {
-        self.inner.ticks
+        self.inner.dev.ticks
     }
 
     #[inline(always)]
@@ -140,22 +132,25 @@ impl<'a> CpuMut<'a> {
 
     #[inline(always)]
     pub fn id(&self) -> CpuId {
-        self.inner.id
+        self.inner.dev.id
     }
 
+    /// This function should only be called during CPU initialization
+    /// when BOOT_CPU is triggered and should not be used at any other
+    /// time. To modify the CPU ID, use `CpuMut->set_id`.
     #[inline(always)]
-    pub fn set_id(&mut self, id: CpuId) {
-        self.inner.id = id;
+    pub(super) unsafe fn set_id(&mut self, id: CpuId) {
+        self.inner.dev.id = id;
     }
 
     #[inline(always)]
     pub fn inc_ticks(&mut self) {
-        self.inner.ticks += 1;
+        self.inner.dev.ticks += 1;
     }
 
     #[inline(always)]
     pub fn zero_ticks(&mut self) {
-        self.inner.ticks = 0;
+        self.inner.dev.ticks = 0;
     }
 
     #[inline(always)]
@@ -261,26 +256,6 @@ pub(super) static BOOT_CPU: UnsafeStatic<Cpu> =
 
         // Temporary initialization; replace with the correct CPUID
         // during actual initialization.
-        id: CpuId::new(0),
+        dev: CpuDev::new(CpuId::new(0), NId::new(0), 0),
         flags: CpuFlags::empty(),
-        ticks: 0,
     });
-
-/// The architecture itself determines where to
-/// place the per-CPU pointers.
-#[inline(always)]
-pub unsafe fn set_this_cpu(cpu_instance: *mut Cpu) {
-    unsafe { arch_cpu::set_this_cpu(cpu_instance) }
-}
-
-/// Number of CPUs detected in the system
-/// This variable must be initialized before memory allocation is
-/// established.
-static NR_CPUS: UnsafeStatic<usize> = UnsafeStatic::uninit();
-pub unsafe fn set_nr_cpus(nr: usize) {
-    unsafe { NR_CPUS.init(nr) };
-}
-
-pub unsafe fn get_nr_cpus() -> usize {
-    unsafe { *NR_CPUS.get() }
-}

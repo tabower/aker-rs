@@ -1,17 +1,10 @@
-//! Page Table Entry - Generic wrapper over architecture PTE
+pub use crate::mm::arch::PTE;
 
-use crate::arch::vm::consts::PT_ENTRIES;
-use crate::arch::vm::consts::level_shift;
-use crate::arch::vm::pte::PTE as ArchPte;
 use crate::mm::addr::PhysAddr;
-use crate::mm::addr::VirtAddr;
 
 /// Page Table Entry
 ///
-/// Re-exports the architecture-specific PTE type.
 /// Additional generic methods are implemented below.
-pub type PTE = ArchPte;
-
 impl PTE {
     /// Check if this is a non-leaf (table pointer) entry
     #[inline]
@@ -23,12 +16,6 @@ impl PTE {
     #[inline]
     pub const fn pa(&self) -> PhysAddr {
         self.ppn().to_addr()
-    }
-
-    /// Get the PageTable index for a VA at given physical level
-    #[inline]
-    pub fn index_of(va: VirtAddr, phys_level: usize) -> usize {
-        (va.as_usize() >> level_shift(phys_level)) & (PT_ENTRIES - 1)
     }
 }
 

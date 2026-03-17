@@ -31,10 +31,13 @@ bitflags::bitflags! {
         /// Dirty
         const D = 1 << 7;
 
+        const UNSAFE_COVER = 0;
+
         // Common Flags
         const RW  = Self::R.bits() | Self::W.bits();
         const RX  = Self::R.bits() | Self::X.bits();
         const RWX = Self::R.bits() | Self::W.bits() | Self::X.bits();
+        const None = 0;
 
         // BOOT Boot Phase Flag
         const BOOT = Self::V.bits() | Self::R.bits() | Self::W.bits() |
@@ -62,13 +65,18 @@ const FLAGS_MASK: u64 = 0x3FF; // bits [9:0]
 pub struct PTE(u64);
 
 impl PTE {
-    #[inline]
+    #[inline(always)]
     pub const fn empty() -> Self {
         Self(0)
     }
 
+    #[inline(always)]
+    pub const fn clear(&mut self) {
+        self.0 = 0;
+    }
+
     /// Create PTE from raw bits
-    #[inline]
+    #[inline(always)]
     pub const fn from_raw(raw: u64) -> Self {
         Self(raw)
     }
@@ -114,10 +122,6 @@ impl PTE {
     // ---- Field access ----
 
     /// Get raw PTE value
-    #[inline]
-    pub const fn raw(&self) -> u64 {
-        self.0
-    }
 
     /// Get flags
     #[inline]
@@ -133,7 +137,7 @@ impl PTE {
 
     // ---- Mutation ----
 
-    /// Set flags (preserves PPN)
+    // Set flags (preserves PPN)
     #[inline]
     pub fn set_flags(&mut self, flags: PTEFlags) {
         self.0 = (self.0 & !FLAGS_MASK) | flags.bits();
@@ -144,11 +148,5 @@ impl PTE {
     pub fn set_ppn(&mut self, ppn: PhysPageNum) {
         self.0 = (self.0 & FLAGS_MASK)
             | ((ppn.as_usize() as u64) << PPN_SHIFT);
-    }
-
-    /// Clear to invalid
-    #[inline]
-    pub const fn clear(&mut self) {
-        self.0 = 0;
     }
 }

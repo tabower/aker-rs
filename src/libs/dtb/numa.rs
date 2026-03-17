@@ -1,5 +1,6 @@
-use super::props::*;
 use fdt::node::FdtNode;
+
+use super::props::*;
 
 const PROP_NUMA_NODE_ID: &str = "numa-node-id";
 

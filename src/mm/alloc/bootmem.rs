@@ -1,26 +1,52 @@
-use core::cell::UnsafeCell;
+use core::alloc::AllocError;
+use core::alloc::Allocator as RustAllocator;
+use core::ptr;
 
-use crate::libs::unsafe_static::UnsafeStatic;
-use crate::mm::numa::NId;
-use crate::mm::page::PAGE_SIZE;
 use crate::prelude::*;
 
-use super::addr::PhysAddr;
-use super::align::AlignOps;
-use super::allocator::*;
-use super::region::MemRegion;
-use super::region::MemRegionKind;
+use crate::cpu::numa::NId;
+
+use crate::libs::unsafe_static::UnsafeStatic;
+
+use crate::kernel::sched::cpu::PreemptGuard;
+
+use crate::mm::addr::PhysAddr;
+use crate::mm::addr::PhysPageNum;
+use crate::mm::align::AlignOps;
+use crate::mm::page::PAGE_SIZE;
+use crate::mm::region::MemRegion;
+use crate::mm::region::MemRegionKind;
+
+use super::AllocFlags;
+use super::NumaPolicy;
+use super::Order;
+use super::PageAllocator;
 
 const MAX_USABLE_REGIONS: usize = 128;
 const MAX_RESERVED_REGIONS: usize = 32;
 
-static BOOTMEM: UnsafeStatic<BootMem> = UnsafeStatic::uninit();
+static BOOTMEM: UnsafeStatic<BootMemInner> = UnsafeStatic::uninit();
 
 static BOOTMEM_REGIONS: UnsafeStatic<
     [BootMemRegion; MAX_USABLE_REGIONS],
 > = UnsafeStatic::zeroed();
 
-struct BootMemInner {
+#[derive(Clone, Copy)]
+pub struct BootMem;
+
+impl BootMem {
+    pub unsafe fn init(inner: BootMemInner) {
+        unsafe {
+            BOOTMEM.init(inner);
+        }
+    }
+
+    pub fn get_mut() -> &'static mut BootMemInner {
+        unsafe { BOOTMEM.get_mut() }
+    }
+}
+
+pub struct BootMemInner {
     regions: &'static mut [BootMemRegion],
     nr_regions: usize, // Number of regions filled
 
@@ -117,12 +143,12 @@ impl BootMemInner {
 
     fn add_usable(&mut self, region: MemRegion) {
         if self.nr_regions >= MAX_USABLE_REGIONS {
-            pr_warn!("[BootMem] too many usable regions\n");
+            pr_warn!("[BootMem] Too many usable regions\n");
             return;
         }
 
         pr_info!(
-            "[BootMem] add usable   [{:#018x} - {:#018x}] node {}\n",
+            "[BootMem] Add usable   [{:#018x} - {:#018x}] node {}\n",
             region.base.as_usize(),
             region.end().as_usize(),
             region.nid
@@ -135,12 +161,12 @@ impl BootMemInner {
 
     fn add_reserved(&mut self, region: MemRegion) {
         if self.nr_reserved >= MAX_RESERVED_REGIONS {
-            pr_warn!("[BootMem] too many reserved regions\n");
+            pr_warn!("[BootMem] Too many reserved regions\n");
             return;
         }
 
         pr_info!(
-            "[BootMem] add reserved [{:#018x} - {:#018x}] node {}\n",
+            "[BootMem] Add reserved [{:#018x} - {:#018x}] node {}\n",
             region.base.as_usize(),
             region.end().as_usize(),
             region.nid
@@ -154,7 +180,7 @@ impl BootMemInner {
         debug_assert!(!self.finalized);
 
         pr_info!(
-            "[BootMem] finalizing {} usable, {} reserved regions\n",
+            "[BootMem] Finalizing {} usable, {} reserved regions\n",
             self.nr_regions,
             self.nr_reserved
         );
@@ -320,50 +346,29 @@ impl BootMemInner {
     }
 }
 
-pub struct BootMem {
-    inner: UnsafeCell<BootMemInner>,
-}
+unsafe impl Sync for BootMemInner {}
 
-unsafe impl Sync for BootMem {}
-impl BootMem {
-    const fn new(inner: BootMemInner) -> Self {
-        Self {
-            inner: UnsafeCell::new(inner),
-        }
-    }
-
-    /// Obtain a static reference to the global BootMem    #[inline]
-    pub fn get() -> &'static BootMem {
-        unsafe { BOOTMEM.get() }
-    }
-
-    #[inline(always)]
-    pub fn add_region(&self, region: MemRegion) {
-        let inner = unsafe { &mut *self.inner.get() };
-        inner.add_region(region);
-    }
-
-    #[inline(always)]
-    pub fn finalize(&self) {
-        let inner = unsafe { &mut *self.inner.get() };
-        inner.finalize();
-    }
-}
-
-impl PageAllocator for BootMem {
+unsafe impl PageAllocator for BootMem {
     fn alloc_pages(
-        &self,
-        order: u8,
+        order: Order,
         _flags: AllocFlags,
-        nid: NId,
         policy: NumaPolicy,
-    ) -> KResult<PageBox<'_>> {
-        let me = unsafe { &mut *self.inner.get() };
-
+    ) -> KResult<PhysPageNum> {
+        let me = Self::get_mut();
         debug_assert!(me.finalized, "BootMem not yet finalized");
-        let count: usize = 1usize << order;
-        let size = count * PAGE_SIZE;
-        let align = size;
+
+        let size = order.byte_size();
+        let align = PAGE_SIZE;
+
+        let (nid, allow_fallback) = {
+            let guard = PreemptGuard::new();
+            let cpu = guard.cpu();
+            match policy {
+                NumaPolicy::Local => (cpu.nid(), false),
+                NumaPolicy::Strict(nid) => (nid, false),
+                NumaPolicy::Preferred => (cpu.nid(), true),
+            }
+        };
 
         // Pass 1: try the preferred / strict node
         for i in 0..me.nr_regions {
@@ -371,15 +376,14 @@ impl PageAllocator for BootMem {
                 continue;
             }
             if let Some(pa) = me.regions[i].alloc(size, align) {
-                return Ok(PageBox::new(pa, order, self));
+                return Ok(pa.to_ppn());
             }
         }
 
-        // If strict, we must not fall back to other nodes.
-        if matches!(policy, NumaPolicy::Strict) {
+        if !allow_fallback {
             return KErr!(
                 KErrNo::ENOMEM,
-                "BootMem: no free pages on strict node"
+                "BootMem: no free pages on node {nid}"
             );
         }
 
@@ -389,30 +393,69 @@ impl PageAllocator for BootMem {
                 continue; // already tried
             }
             if let Some(pa) = me.regions[i].alloc(size, align) {
-                return Ok(PageBox::new(pa, order, self));
+                return Ok(pa.to_ppn());
             }
         }
 
         KErr!(KErrNo::ENOMEM, "BootMem: out of memory")
     }
 
-    fn free_pages(&self, _pa: PhysAddr, _order: u8) -> KResult<()> {
-        // Boot memory allocator is a bump allocator
-        // We are not considering memory recycling at this time.
-        Ok(())
+    // Boot memory allocator is a bump allocator
+    // We are not considering memory recycling at this time.
+    #[inline(always)]
+    unsafe fn free_pages(_ppn: PhysPageNum, _order: Order) {}
+}
+
+unsafe impl RustAllocator for BootMem {
+    fn allocate(
+        &self,
+        layout: core::alloc::Layout,
+    ) -> Result<ptr::NonNull<[u8]>, AllocError> {
+        let me = Self::get_mut();
+        debug_assert!(me.finalized, "BootMem not yet finalized");
+
+        let size = layout.size();
+        let align = layout.align();
+
+        let mut pa = None;
+        me.regions.iter_mut().any(|r: &mut BootMemRegion| {
+            pa = r.alloc(size, align);
+            pa.is_some()
+        });
+
+        match pa {
+            Some(addr) => {
+                let ptr = addr.to_virt().as_mut_ptr::<u8>();
+                let slice = unsafe {
+                    core::ptr::NonNull::new_unchecked(
+                        core::ptr::slice_from_raw_parts_mut(
+                            ptr, size,
+                        ),
+                    )
+                };
+                Ok(slice)
+            }
+            None => Err(core::alloc::AllocError),
+        }
+    }
+
+    unsafe fn deallocate(
+        &self,
+        _ptr: ptr::NonNull<u8>,
+        _layout: core::alloc::Layout,
+    ) {
     }
 }
 
 pub fn global_bootmem_init() {
     unsafe {
         let regions = BOOTMEM_REGIONS.get_mut();
-
-        BOOTMEM.init(BootMem::new(BootMemInner {
+        BOOTMEM.init(BootMemInner {
             regions,
             nr_regions: 0,
             reserved: core::mem::zeroed(),
             nr_reserved: 0,
             finalized: false,
-        }));
+        });
     };
 }

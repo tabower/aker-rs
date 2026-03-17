@@ -6,7 +6,7 @@ pub(super) mod numa;
 pub(super) mod props;
 pub(super) mod raw;
 
-pub use cpu::Cpu;
+pub use cpu::DtbCpu;
 pub use dtb::*;
 pub use mem::DtbMemKind;
 pub use mem::DtbMemRegion;

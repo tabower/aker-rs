@@ -1,6 +1,7 @@
-use crate::arch;
 use core::fmt;
 use core::fmt::Write;
+
+use crate::arch;
 
 struct LogStdout;
 

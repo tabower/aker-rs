@@ -1,4 +1,3 @@
-// props.rs
 use fdt::node::FdtNode;
 
 #[derive(Clone, Copy)]

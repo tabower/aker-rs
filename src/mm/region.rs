@@ -1,4 +1,5 @@
-use super::numa::NId;
+use crate::cpu::numa::NId;
+
 use crate::mm::addr::PhysAddr;
 
 /// Describe a block of physical memory

@@ -1,3 +1,3 @@
-pub use crate::arch::mm::page::PAGE_MASK;
-pub use crate::arch::mm::page::PAGE_SHIFT;
-pub use crate::arch::mm::page::PAGE_SIZE;
+pub use crate::mm::arch::PAGE_MASK;
+pub use crate::mm::arch::PAGE_SHIFT;
+pub use crate::mm::arch::PAGE_SIZE;

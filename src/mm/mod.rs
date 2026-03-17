@@ -1,7 +1,8 @@
 pub mod addr;
 pub mod align;
-pub mod allocator;
-pub mod bootmem;
-pub mod numa;
+pub mod alloc;
 pub mod page;
 pub mod region;
+pub mod vm;
+
+pub(super) mod arch;
